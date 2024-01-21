@@ -16,8 +16,8 @@ TagManager:
   - Enemy
   - PlayerHitBox
   - EnemyHitBox
-  - 
-  - 
+  - GroundDectection
+  - PickUpLayer
   - 
   - 
   - 

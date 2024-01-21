@@ -27,11 +27,10 @@ public class PlayerController : MonoBehaviour
     private float airWalkSpeed = 3f;
     public bool _isFacingLeft = false;
     Vector2 moveInput;
-
-
     TouchingDirections touchingDirections;
     Rigidbody2D rb;
     Animator animator;
+    Damageable damageable;
 
     public bool IsAlive
     {
@@ -108,18 +107,41 @@ public class PlayerController : MonoBehaviour
             animator.SetBool(AnimationStrings.isRunning, value);
         }
     }
-    
+
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         touchingDirections = GetComponent<TouchingDirections>();
+        damageable = GetComponent<Damageable>();
     }
     // Start is called before the first frame update
     private void FixedUpdate()
     {
-        if (touchingDirections.IsGrounded) JumpRemaining = 1;
+        if (!damageable.LockVelocity && CanMove)
+        {
+            if (touchingDirections.IsGrounded) JumpRemaining = 1;
+            if (!touchingDirections.IsOnWall)
+            {
+                // Only update the velocity if the player is not on a wall
+                //if (IsRunning)
+                //{
+                //    rb.velocity.y = 0;
+                //}
+                rb.velocity = new Vector2(moveInput.x * CurrentMoveSpeed, rb.velocity.y);
+            }
+            else
+            {
+                // If the player is on a wall, set horizontal velocity to 0
+                rb.velocity = new Vector2(0f, rb.velocity.y);
+            }
+        }
+
+
+        animator.SetFloat(AnimationStrings.yVelocity, rb.velocity.y);
+
+
     }
 
     // Update is called once per frame
@@ -127,22 +149,7 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         
-        if (!touchingDirections.IsOnWall)
-        {
-            // Only update the velocity if the player is not on a wall
-            //if (IsRunning)
-            //{
-            //    rb.velocity.y = 0;
-            //}
-            rb.velocity = new Vector2(moveInput.x * CurrentMoveSpeed, rb.velocity.y);
-        }
-        else
-        {
-            // If the player is on a wall, set horizontal velocity to 0
-            rb.velocity = new Vector2(0f, rb.velocity.y);
-        }
-
-        animator.SetFloat(AnimationStrings.yVelocity, rb.velocity.y);
+        
     }
 
     public void OnMove(InputAction.CallbackContext context)
@@ -229,5 +236,12 @@ public class PlayerController : MonoBehaviour
         {
             animator.SetTrigger(AnimationStrings.attackTrigger);
         }
+    }
+
+    public void OnHit(int damage, Vector2 knockback)
+    {
+        damageable.LockVelocity = true;
+        rb.velocity = new Vector2(knockback.x, rb.velocity.y + knockback.y);
+
     }
 }

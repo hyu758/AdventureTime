@@ -7,15 +7,19 @@ using UnityEngine;
 public class Knight : MonoBehaviour
 {
     public DetectionZone attackZone;
+    public DetectionZone cliffDetectionZone;
     // Start is called before the first frame update
     [SerializeField]
     private float walkSpeed = 3f;
     [SerializeField]
     private float walkStopRate = 0.05f;
     private Vector2 WalkDirectionVector = Vector2.right;
+
+    
     Rigidbody2D rb;
     TouchingDirections touchingDirections;
     Animator animator;
+    Damageable damageable;
 
     public GameObject WallBoxx;
     public enum WalkableDirection { Right, Left}
@@ -63,17 +67,32 @@ public class Knight : MonoBehaviour
             return animator.GetBool(AnimationStrings.canMove);
         }
     }
+
+    public float AttackCoolDown
+    {
+        get
+        {
+            return animator.GetFloat(AnimationStrings.attackCoolDown);
+        }
+        private set
+        {
+            animator.SetFloat(AnimationStrings.attackCoolDown, Mathf.Max(value, 0f));
+        }
+    }
+
     // Update is called once per frame
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         touchingDirections = GetComponent<TouchingDirections>();
         animator = GetComponent<Animator>();
+        damageable = GetComponent<Damageable>();
     }
 
     void Update()
     {
         HasTarget = attackZone.detectedColliders.Count > 0;
+        AttackCoolDown -= Time.deltaTime;
     }
     private void FixedUpdate()
     {
@@ -81,23 +100,26 @@ public class Knight : MonoBehaviour
         {
             FlipDirection();
         }
-        if (CanMove)
+        if (!damageable.LockVelocity)
         {
-            if (touchingDirections.IsGrounded && !touchingDirections.IsOnWall)
+            if (CanMove)
             {
-                if (WalkDirection == WalkableDirection.Left)
+                if (touchingDirections.IsGrounded && !touchingDirections.IsOnWall)
                 {
-                    rb.velocity = new Vector2(walkSpeed * Vector2.left.x, rb.velocity.y);
-                }
-                if (WalkDirection == WalkableDirection.Right)
-                {
-                    rb.velocity = new Vector2(walkSpeed * Vector2.right.x, rb.velocity.y);
+                    if (WalkDirection == WalkableDirection.Left)
+                    {
+                        rb.velocity = new Vector2(walkSpeed * Vector2.left.x, rb.velocity.y);
+                    }
+                    if (WalkDirection == WalkableDirection.Right)
+                    {
+                        rb.velocity = new Vector2(walkSpeed * Vector2.right.x, rb.velocity.y);
+                    }
                 }
             }
-        }
-        else
-        {
-            rb.velocity = new Vector2(Mathf.Lerp(rb.velocity.x, 0, walkStopRate), rb.velocity.y);
+            else
+            {
+                rb.velocity = new Vector2(Mathf.Lerp(rb.velocity.x, 0, walkStopRate), rb.velocity.y);
+            }
         }
 
 
@@ -111,6 +133,19 @@ public class Knight : MonoBehaviour
         else if (WalkDirection == WalkableDirection.Left)
         {
             WalkDirection = WalkableDirection.Right;
+        }
+    }
+    public void OnHit(int damage, Vector2 knockback)
+    {
+        rb.velocity = new Vector2(knockback.x, rb.velocity.y + knockback.y);
+
+    }
+
+    public void OnCliffDetected()
+    {
+        if (touchingDirections.IsGrounded)
+        {
+            FlipDirection();
         }
     }
 }

@@ -2,16 +2,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class Damageable : MonoBehaviour
 {
     // Start is called before the first frame update
 
+    public UnityEvent<int, Vector2> damageableHit;
     Animator animator;
 
     [SerializeField]
-    private float _maxHeath = 100;
-    public float MaxHeath
+    private int _maxHeath = 100;
+    public int MaxHeath
     {
         get
         {
@@ -23,14 +25,14 @@ public class Damageable : MonoBehaviour
         }
     }
     [SerializeField]
-    private float _heath = 100;
+    private int _heath = 100;
 
-    public float Heath
+    public int Heath
     {
         get { return _heath; }
         private set {
             _heath = value;
-            if (_heath < 0)
+            if (_heath <= 0)
             {
                 IsAlive = false;
             }
@@ -40,7 +42,9 @@ public class Damageable : MonoBehaviour
     private bool _isAlive = true;
     [SerializeField]
     private bool isInvincible = false;
-    private float invincibilityTimer = 0.25f;
+
+    [SerializeField]
+    private float invincibilityTimer = 0.5f;
     private float timeSinceHit = 0;
 
     public bool IsAlive{
@@ -53,6 +57,19 @@ public class Damageable : MonoBehaviour
             Debug.Log("IsAlive: " + value);
         }
     }
+
+    public bool LockVelocity
+    {
+        get
+        {
+            return animator.GetBool(AnimationStrings.lockVelocity);
+        }
+        set
+        {
+            animator.SetBool(AnimationStrings.lockVelocity, value);
+        }
+    }
+
     private void Awake()
     {
         animator = GetComponent<Animator>();
@@ -70,15 +87,32 @@ public class Damageable : MonoBehaviour
             }
             timeSinceHit+= Time.deltaTime;
         }
-        Debug.Log(Heath);
-        Hit(10);
     }
-    public void Hit(int damage)
+    public bool Hit(int damage, Vector2 knockback)
     {
         if (IsAlive && !isInvincible)
         {
             Heath -= damage;
             isInvincible = true;
+            animator.SetTrigger(AnimationStrings.hitTrigger);
+            LockVelocity = true;
+            damageableHit?.Invoke(damage, knockback);
+            CharacterEvents.characterDamaged.Invoke(gameObject, damage);
+            return true;
         }
+        return false;
+    }
+
+    public bool Heal(int heathRestore)
+    {
+        if (IsAlive && Heath < MaxHeath)
+        {
+            int actualHeath = Mathf.Min(Mathf.Max(MaxHeath - Heath, 0), heathRestore);
+            Heath += actualHeath;
+
+            CharacterEvents.characterHealed(gameObject, actualHeath);
+            return true;
+        }
+        return false;
     }
 }
